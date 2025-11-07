@@ -35,18 +35,13 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.plugin = exports.details = void 0;
-var fs_1 = require("fs");
 var fileUtils_1 = require("../../../../FlowHelpers/1.0.0/fileUtils");
-var normJoinPath_1 = __importDefault(require("../../../../FlowHelpers/1.0.0/normJoinPath"));
 /* eslint no-plusplus: ["error", { "allowForLoopAfterthoughts": true }] */
 var details = function () { return ({
-    name: 'Copy to Directory',
-    description: 'Copy the working file to a directory',
+    name: 'Calculate File Hash',
+    description: 'Calculate File Hash and place it in a variable',
     style: {
         borderColor: 'green',
     },
@@ -55,37 +50,38 @@ var details = function () { return ({
     pType: '',
     requiresVersion: '2.11.01',
     sidebarPosition: -1,
-    icon: 'faArrowRight',
+    icon: 'faHashtag',
     inputs: [
         {
-            label: 'Output Directory',
-            name: 'outputDirectory',
+            label: 'Algorithm',
+            name: 'algorithm',
             type: 'string',
-            defaultValue: '',
+            defaultValue: 'sha256',
             inputUI: {
-                type: 'directory',
+                type: 'dropdown',
+                options: ['md5', 'sha1', 'sha256', 'sha512'],
             },
-            tooltip: 'Specify ouput directory',
+            tooltip: 'Select the algorithm for the file hash.',
         },
         {
-            label: 'Keep Relative Path',
-            name: 'keepRelativePath',
-            type: 'boolean',
-            defaultValue: 'false',
+            label: 'Absolute path to the file',
+            name: 'filePath',
+            type: 'string',
+            defaultValue: '{{{args.inputFileObj._id}}}',
             inputUI: {
-                type: 'switch',
+                type: 'text',
             },
-            tooltip: "\n      \nSpecify whether to keep the relative path.\n\nFor example:\n\n\\n Source folder:\n\\n C:/input/\n\n\\n Source file:\n\\n C:/input/test1/test2/qsv_h264.mkv\n\n\\n Copy to Directory Output Directory\n\\n C:/output/\n\n\\n Keep Relative Path disabled:\n\\n C:/output/qsv_h264.mkv\n\n\\n Keep Relative Path enabled:\n\\n C:/output/test1/test2/qsv_h264.mkv\n      \n      ",
+            tooltip: "Set the absolute path to the file to which the hash will be calculated. Variable templating is allowed.\n\n      https://docs.tdarr.io/docs/plugins/flow-plugins/basics#plugin-variable-templating\n\n      For Example,\n\n      Original file\n      {{{ args.originalLibraryFile._id }}}\n\n      Working file\n      {{{ args.inputFileObj._id }}}",
         },
         {
-            label: 'Make Working File',
-            name: 'makeWorkingFile',
-            type: 'boolean',
-            defaultValue: 'false',
+            label: 'Variable',
+            name: 'variable',
+            type: 'string',
+            defaultValue: 'fileHash',
             inputUI: {
-                type: 'switch',
+                type: 'text',
             },
-            tooltip: 'Make the copied file the working file',
+            tooltip: "Variable to set.\n\n      Example\n      fileHash\n\n      You can then check this in the 'Check Flow Variable' plugin {{{args.variables.user.fileHash}}}\n      against another value such as {{{args.variables.user.otherFileHash}}}",
         },
     ],
     outputs: [
@@ -98,68 +94,39 @@ var details = function () { return ({
 exports.details = details;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 var plugin = function (args) { return __awaiter(void 0, void 0, void 0, function () {
-    var lib, _a, keepRelativePath, makeWorkingFile, outputDirectory, originalFileName, newContainer, outputPath, subStem, ouputFilePath, workingFile;
-    return __generator(this, function (_b) {
-        switch (_b.label) {
+    var lib, algorithm, filePath, variable, hash, err_1, errorMessage;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
             case 0:
                 lib = require('../../../../../methods/lib')();
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-param-reassign
                 args.inputs = lib.loadDefaultValues(args.inputs, details);
-                _a = args.inputs, keepRelativePath = _a.keepRelativePath, makeWorkingFile = _a.makeWorkingFile;
-                outputDirectory = String(args.inputs.outputDirectory);
-                originalFileName = (0, fileUtils_1.getFileName)(args.inputFileObj._id);
-                newContainer = (0, fileUtils_1.getContainer)(args.inputFileObj._id);
-                outputPath = '';
-                if (keepRelativePath) {
-                    subStem = (0, fileUtils_1.getSubStem)({
-                        inputPathStem: args.librarySettings.folder,
-                        inputPath: args.originalLibraryFile._id,
-                    });
-                    outputPath = (0, normJoinPath_1.default)({
-                        upath: args.deps.upath,
-                        paths: [
-                            outputDirectory,
-                            subStem,
-                        ],
-                    });
-                }
-                else {
-                    outputPath = outputDirectory;
-                }
-                ouputFilePath = (0, normJoinPath_1.default)({
-                    upath: args.deps.upath,
-                    paths: [
-                        outputPath,
-                        "".concat(originalFileName, ".").concat(newContainer),
-                    ],
-                });
-                workingFile = args.inputFileObj._id;
-                if (makeWorkingFile) {
-                    workingFile = ouputFilePath;
-                }
-                args.jobLog("Input path: ".concat(args.inputFileObj._id));
-                args.jobLog("Output path: ".concat(outputPath));
-                if (args.inputFileObj._id === ouputFilePath) {
-                    args.jobLog('Input and output path are the same, skipping copy.');
-                    return [2 /*return*/, {
-                            outputFileObj: {
-                                _id: args.inputFileObj._id,
-                            },
-                            outputNumber: 1,
-                            variables: args.variables,
-                        }];
-                }
-                args.deps.fsextra.ensureDirSync(outputPath);
-                return [4 /*yield*/, fs_1.promises.copyFile(args.inputFileObj._id, ouputFilePath)];
+                algorithm = String(args.inputs.algorithm).trim();
+                filePath = String(args.inputs.filePath).trim();
+                variable = String(args.inputs.variable).trim();
+                args.jobLog("Calculating the ".concat(algorithm, " hash of ").concat(filePath, " and recording it in ").concat(variable));
+                _a.label = 1;
             case 1:
-                _b.sent();
+                _a.trys.push([1, 3, , 4]);
+                return [4 /*yield*/, (0, fileUtils_1.hashFile)(filePath, algorithm)];
+            case 2:
+                hash = _a.sent();
+                if (!args.variables.user) {
+                    // eslint-disable-next-line no-param-reassign
+                    args.variables.user = {};
+                }
+                // eslint-disable-next-line no-param-reassign
+                args.variables.user[variable] = hash;
                 return [2 /*return*/, {
-                        outputFileObj: {
-                            _id: workingFile,
-                        },
+                        outputFileObj: args.inputFileObj,
                         outputNumber: 1,
                         variables: args.variables,
                     }];
+            case 3:
+                err_1 = _a.sent();
+                errorMessage = err_1.message;
+                throw new Error("Error calculating file hash: ".concat(errorMessage));
+            case 4: return [2 /*return*/];
         }
     });
 }); };
