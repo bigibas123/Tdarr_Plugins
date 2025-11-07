@@ -237,6 +237,13 @@ const attemptMakeStream = ({
 
   if (hasStreamAlready.length > 0) {
     args.jobLog(`File already has ${langTag} stream in ${audioEncoder}, ${targetChannels} channels \n`);
+    hasStreamAlready.forEach((stream) => {
+      if (stream.removed) {
+        args.jobLog(`Stream ${stream.index} was marked for removal, unmarking it \n`);
+        // eslint-disable-next-line no-param-reassign
+        stream.removed = false;
+      }
+    });
     return true;
   }
 

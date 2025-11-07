@@ -200,6 +200,13 @@ var attemptMakeStream = function (_a) {
     });
     if (hasStreamAlready.length > 0) {
         args.jobLog("File already has ".concat(langTag, " stream in ").concat(audioEncoder, ", ").concat(targetChannels, " channels \n"));
+        hasStreamAlready.forEach(function (stream) {
+            if (stream.removed) {
+                args.jobLog("Stream ".concat(stream.index, " was marked for removal, unmarking it \n"));
+                // eslint-disable-next-line no-param-reassign
+                stream.removed = false;
+            }
+        });
         return true;
     }
     args.jobLog("Adding ".concat(langTag, " stream in ").concat(audioEncoder, ", ").concat(targetChannels, " channels \n"));
